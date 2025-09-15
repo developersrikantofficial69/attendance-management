@@ -1,0 +1,221 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Dashboard - Attendance App</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+    body {
+      font-family: 'Poppins', Inter, system-ui, Arial;
+      background: #f5f7fb;
+      margin: 0;
+      color: #333;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      background: linear-gradient(90deg, #667eea, #764ba2, #6b46c1, #764ba2);
+      background-size: 200% 200%;
+      color: #fff;
+      animation: gradient-animation 10s ease infinite;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    @keyframes gradient-animation {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    main { padding: 20px; max-width: 980px; margin: 24px auto; }
+    .card { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 6px 20px rgba(30,30,70,0.07); margin-bottom: 20px; }
+    label { display: block; margin-bottom: 6px; font-weight: 600; color: #555; }
+    input, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 12px; box-sizing: border-box; }
+    
+    button {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-primary { background: #667eea; color: #fff; }
+    .btn-ghost { background: transparent; border: 1px solid #ddd; color: #555; }
+    .btn-delete { background-color: #fbebee; color: #c53030; border: none; font-size:12px; padding: 6px 10px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; border-bottom: 1px solid #efefef; text-align: left; }
+    th { color: #888; }
+    .actions { display: flex; gap: 8px; }
+    .small { font-size: 13px; color: #666; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <strong>Attendance App</strong>
+      <div class="small" style="color: #eee;">Simple Dashboard</div>
+    </div>
+    <div>
+      <span id="userName"></span>
+      <a href="attendance.html"><button class="btn-primary" style="margin-left:10px">Go to Attendance</button></a>
+      <button id="btnLogout" class="btn-ghost" style="margin-left:10px; border-color: #fff; color: #fff;">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="card">
+      <h3>Add Student</h3>
+      <div>
+        <label>Student Name</label>
+        <input id="studentName" placeholder="e.g. Rahul Kumar" />
+        <label>Register No.</label>
+        <input id="regNo" placeholder="e.g. 20CS101" />
+        <label>Session / Class</label>
+        <input id="session" placeholder="e.g. 10th-A or 2024-25" />
+        <button id="addStudent" class="btn-primary">Add Student</button>
+      </div>
+      <div id="status" class="small" style="margin-top:8px; color: #2a9d8f;"></div>
+    </div>
+
+    <div class="card">
+      <h3>Students List</h3>
+      <table id="studentsTable">
+        <thead><tr><th>Name</th><th>Reg No</th><th>Session</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, query, where, doc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC6283Rn9s6PzQ6YKz0HX-34jgLzuIM9ic",
+      authDomain: "attendance-manager-web-app.firebaseapp.com",
+      projectId: "attendance-manager-web-app",
+      storageBucket: "attendance-manager-web-app.firebasestorage.app",
+      messagingSenderId: "755386154708",
+      appId: "1:755386154708:web:4dfac5b914aa3bd2b18541"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    const userNameElm = document.getElementById('userName');
+    if (!user) {
+      location.href = 'login.html';
+    } else {
+      userNameElm.textContent = user.name || 'User';
+    }
+
+    const addBtn = document.getElementById('addStudent');
+    const status = document.getElementById('status');
+    const tableBody = document.querySelector('#studentsTable tbody');
+    
+    // --- Get references to input fields once ---
+    const studentNameInput = document.getElementById('studentName');
+    const regNoInput = document.getElementById('regNo');
+    const sessionInput = document.getElementById('session');
+
+    addBtn.onclick = async () => {
+      const name = studentNameInput.value.trim();
+      const regNo = regNoInput.value.trim();
+      const sessionVal = sessionInput.value.trim();
+
+      if (!name || !regNo) { 
+        status.textContent = 'Name and Reg No required'; 
+        return; 
+      }
+
+      try {
+        await addDoc(collection(db, 'students'), {
+          name, regNo, session: sessionVal || '',
+          createdBy: user.uid || null,
+          createdAt: Date.now()
+        });
+        status.textContent = 'Student added successfully!';
+        
+        // --- FIXED: Clear the input fields after successful submission ---
+        studentNameInput.value = '';
+        regNoInput.value = '';
+        sessionInput.value = '';
+
+      } catch (err) {
+        console.error(err); 
+        status.textContent = 'Error: ' + err.message;
+      }
+    };
+
+    function listenForStudents() {
+      tableBody.innerHTML = '<tr><td colspan="4" class="small">Loading...</td></tr>';
+      const colRef = collection(db, 'students');
+      let q;
+      if (user && user.uid) {
+        q = query(colRef, where('createdBy', '==', user.uid));
+      } else {
+        tableBody.innerHTML = '<tr><td colspan="4" class="small">Please log in to see students.</td></tr>';
+        return;
+      }
+      
+      onSnapshot(q, (snap) => {
+        if (snap.empty) {
+          tableBody.innerHTML = '<tr><td colspan="4" class="small">No students found. Add one above!</td></tr>';
+          return;
+        }
+        tableBody.innerHTML = '';
+        snap.forEach(docSnap => {
+          const data = docSnap.data();
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${data.name || ''}</td>
+            <td>${data.regNo || ''}</td>
+            <td>${data.session || ''}</td>
+            <td class="actions">
+              <button data-id="${docSnap.id}" class="btn-delete">Delete</button>
+            </td>
+          `;
+          tableBody.appendChild(tr);
+
+          tr.querySelector('.btn-delete').onclick = async (e) => {
+            const id = e.target.getAttribute('data-id');
+            try {
+              await deleteDoc(doc(db, 'students', id));
+            } catch (err) { 
+              console.error('Delete failed:', err);
+              alert('Delete failed: ' + err.message);
+            }
+          };
+        });
+      }, (err) => {
+        console.error(err);
+        tableBody.innerHTML = '<tr><td colspan="4" class="small">Error loading students.</td></tr>';
+      });
+    }
+
+    document.getElementById('btnLogout').onclick = async () => {
+      localStorage.removeItem('user');
+      try { await signOut(auth); } catch(e){ /* ignore */ }
+      location.href = 'login.html';
+    };
+
+    listenForStudents();
+  </script>
+</body>
+</html>
+

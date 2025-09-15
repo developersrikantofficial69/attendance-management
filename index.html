@@ -1,0 +1,218 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Login - Attendance App</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    /* Added a cool font from Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+    :root {
+      --glow-x: 50%;
+      --glow-y: 50%;
+    }
+
+    body {
+      font-family: 'Poppins', Inter, system-ui, Arial;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      /* --- ✨ New Animated Gradient --- */
+      background: linear-gradient(135deg, #667eea, #764ba2, #6b46c1, #764ba2);
+      background-size: 200% 200%;
+      color: #fff;
+      animation: gradient-animation 10s ease infinite;
+    }
+    
+    /* --- ✨ New Full-Page Cursor Hover Effect --- */
+    body::before {
+      content: '';
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100vh;
+      background: radial-gradient(
+        circle 400px at var(--glow-x) var(--glow-y),
+        rgba(255, 255, 255, 0.05), /* Subtle white glow for this theme */
+        transparent
+      );
+      z-index: 0;
+      transition: background 0.1s ease-out;
+    }
+    
+    /* --- ✨ Keyframe animation for the gradient --- */
+    @keyframes gradient-animation {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .card {
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(10px);
+      padding: 28px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      width: 320px;
+      text-align: center;
+      position: relative; /* Ensure card is on top of the glow effect */
+      z-index: 1;
+      /* --- ✨ New Fade-in Animation for the card --- */
+      animation: fadeIn 0.8s ease-in-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* --- NEW styles for input fields --- */
+    .form-group { margin-bottom: 16px; }
+    input[type="email"], input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(0,0,0,0.2);
+      color: #fff;
+      font-size: 14px;
+      box-sizing: border-box; /* Important for padding and width */
+    }
+    input::placeholder { color: rgba(255,255,255,0.6); }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      margin-top: 10px;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .login { background: #667eea; color: #fff; }
+    .signup { background: rgba(255,255,255,0.12); color: #fff; }
+    
+    .guest-link { margin-top: 16px; font-size: 13px; }
+    .guest-link a { color: #fff; text-decoration: none; opacity: 0.8; }
+
+    h1 { margin:0 0 12px 0; font-size: 20px; }
+    p { margin:0 0 18px 0; opacity:0.9; }
+    #msg { margin-top: 15px; color: #ff9999; font-weight: 600;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Attendance App</h1>
+    <p>Login or create an account</p>
+    <div class="form-group">
+      <input type="email" id="email" placeholder="Email" required>
+    </div>
+    <div class="form-group">
+      <input type="password" id="password" placeholder="Password (min. 6 characters)" required>
+    </div>
+    <button id="btnLogin" class="login">Login</button>
+    <button id="btnSignUp" class="signup">Sign Up</button>
+    <p class="guest-link"><a href="#" id="btnGuest">Continue as Guest</a></p>
+    <div id="msg"></div>
+  </div>
+
+  <!-- Firebase v9 modular CDN -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    // --- UPDATED: Import email/password functions instead of Google ---
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC6283Rn9s6PzQ6YKz0HX-34jgLzuIM9ic",
+      authDomain: "attendance-manager-web-app.firebaseapp.com",
+      projectId: "attendance-manager-web-app",
+      storageBucket: "attendance-manager-web-app.firebasestorage.app",
+      messagingSenderId: "755386154708",
+      appId: "1:755386154708:web:4dfac5b914aa3bd2b18541"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    document.body.addEventListener('mousemove', (e) => {
+        document.documentElement.style.setProperty('--glow-x', `${e.clientX}px`);
+        document.documentElement.style.setProperty('--glow-y', `${e.clientY}px`);
+    });
+
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const btnLogin = document.getElementById('btnLogin');
+    const btnSignUp = document.getElementById('btnSignUp');
+    const btnGuest = document.getElementById('btnGuest');
+    const msg = document.getElementById('msg');
+    
+    function handleAuth(user) {
+      localStorage.setItem('user', JSON.stringify({
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName || user.email, // Use email as name if displayName is not set
+        photo: user.photoURL || ''
+      }));
+      location.href = 'dashboard.html';
+    }
+
+    // --- NEW: Login with Email and Password ---
+    btnLogin.onclick = async () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+      if (!email || !password) {
+        msg.textContent = 'Please enter both email and password.';
+        return;
+      }
+      try {
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        handleAuth(result.user);
+      } catch (err) {
+        console.error(err);
+        msg.textContent = err.message;
+      }
+    };
+
+    // --- NEW: Sign Up with Email and Password ---
+    btnSignUp.onclick = async () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value.trim();
+      if (!email || !password) {
+        msg.textContent = 'Please enter both email and password.';
+        return;
+      }
+      try {
+        const result = await createUserWithEmailAndPassword(auth, email, password);
+        handleAuth(result.user);
+      } catch (err) {
+        console.error(err);
+        msg.textContent = err.message;
+      }
+    };
+
+    btnGuest.onclick = (e) => {
+      e.preventDefault();
+      localStorage.setItem('user', JSON.stringify({ guest: true, name: 'Guest' }));
+      location.href = 'dashboard.html';
+    };
+
+    const stored = localStorage.getItem('user');
+    if (stored) {
+      setTimeout(()=> location.href = 'dashboard.html', 500);
+    }
+  </script>
+</body>
+</html>
+
